@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { Send } from 'lucide-react';
+import { Send, CheckCircle } from 'lucide-react';
 import FadeIn from '../ui/FadeIn';
+import { toast } from "@/hooks/use-toast";
 
 const Contact: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -10,18 +11,97 @@ const Contact: React.FC = () => {
     message: '',
   });
   
+  const [errors, setErrors] = useState({
+    name: '',
+    email: '',
+    message: '',
+  });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  
+  const validateForm = () => {
+    let valid = true;
+    const newErrors = {
+      name: '',
+      email: '',
+      message: '',
+    };
+    
+    // Validate name
+    if (!formData.name.trim()) {
+      newErrors.name = 'Le nom est requis';
+      valid = false;
+    }
+    
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email.trim()) {
+      newErrors.email = 'L\'email est requis';
+      valid = false;
+    } else if (!emailRegex.test(formData.email)) {
+      newErrors.email = 'Veuillez entrer un email valide';
+      valid = false;
+    }
+    
+    // Validate message
+    if (!formData.message.trim()) {
+      newErrors.message = 'Le message est requis';
+      valid = false;
+    } else if (formData.message.trim().length < 10) {
+      newErrors.message = 'Le message doit contenir au moins 10 caractères';
+      valid = false;
+    }
+    
+    setErrors(newErrors);
+    return valid;
+  };
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Clear error when typing
+    if (errors[name as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Form submission logic would go here
-    console.log('Form submitted:', formData);
     
-    // Reset form after submission
-    setFormData({ name: '', email: '', message: '' });
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Simulate API request
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Success handling
+      setIsSuccess(true);
+      setFormData({ name: '', email: '', message: '' });
+      
+      toast({
+        title: "Message envoyé",
+        description: "Nous vous contacterons bientôt. Merci !",
+      });
+      
+      // Reset success state after 5 seconds
+      setTimeout(() => {
+        setIsSuccess(false);
+      }, 5000);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Une erreur est survenue",
+        description: "Veuillez réessayer plus tard.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   return (
@@ -104,9 +184,12 @@ const Contact: React.FC = () => {
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-300"
+                    className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 transition-all duration-300 ${errors.name ? 'border-destructive focus:ring-destructive/20' : 'border-border focus:ring-primary/20'}`}
                     required
                   />
+                  {errors.name && (
+                    <p className="mt-1 text-sm text-destructive">{errors.name}</p>
+                  )}
                 </div>
                 
                 <div>
@@ -119,9 +202,12 @@ const Contact: React.FC = () => {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-300"
+                    className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 transition-all duration-300 ${errors.email ? 'border-destructive focus:ring-destructive/20' : 'border-border focus:ring-primary/20'}`}
                     required
                   />
+                  {errors.email && (
+                    <p className="mt-1 text-sm text-destructive">{errors.email}</p>
+                  )}
                 </div>
                 
                 <div>
@@ -134,17 +220,38 @@ const Contact: React.FC = () => {
                     value={formData.message}
                     onChange={handleChange}
                     rows={5}
-                    className="w-full px-4 py-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-300 resize-none"
+                    className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 transition-all duration-300 resize-none ${errors.message ? 'border-destructive focus:ring-destructive/20' : 'border-border focus:ring-primary/20'}`}
                     required
                   ></textarea>
+                  {errors.message && (
+                    <p className="mt-1 text-sm text-destructive">{errors.message}</p>
+                  )}
                 </div>
                 
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium transition-transform duration-300 hover:scale-105 active:scale-95"
+                  disabled={isSubmitting}
+                  className={`w-full flex items-center justify-center px-6 py-3 rounded-lg font-medium transition-all duration-300 ${isSuccess ? 'bg-green-500 text-white' : 'bg-primary text-primary-foreground hover:scale-105 active:scale-95'} ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  Envoyer
-                  <Send className="ml-2 w-4 h-4" />
+                  {isSubmitting ? (
+                    <div className="flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Envoi en cours...
+                    </div>
+                  ) : isSuccess ? (
+                    <div className="flex items-center">
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Message envoyé !
+                    </div>
+                  ) : (
+                    <>
+                      Envoyer
+                      <Send className="ml-2 w-4 h-4" />
+                    </>
+                  )}
                 </button>
               </form>
             </div>
